@@ -79,7 +79,7 @@ class QwenTTS:
         parts = [style or self.default_style, EMOTION_INSTRUCT.get(emotion, EMOTION_INSTRUCT["neutral"])]
         return " ".join(p.strip() for p in parts if p and p.strip())
 
-    def _synth(self, text: str, speaker: str, emotion: str, style: str | None) -> bytes:
+    def _synth(self, text: str, speaker: str, emotion: str, style: str | None, speed_mul: float = 1.0) -> bytes:
         if self.model is None:
             raise RuntimeError("qwen tts not loaded")
         speakers = {s.lower() for s in self.available()}
@@ -96,22 +96,39 @@ class QwenTTS:
             w.setnchannels(1); w.setsampwidth(2); w.setframerate(int(sr))
             w.writeframes((pcm * 32767).astype(np.int16).tobytes())
         data = buf.getvalue()
-        speed = float(self.opts.get("speed", 1.0))
+        speed = float(self.opts.get("speed", 1.0)) * max(speed_mul, 0.1)
         if abs(speed - 1.0) > 0.01:
             data = _atempo(data, speed) or data
         return data
 
     async def synthesize(self, text: str, voice: str | None = None, emotion: str = "neutral",
-                         style: str | None = None) -> bytes:
+                         style: str | None = None, speed: float = 1.0) -> bytes:
         return await asyncio.get_running_loop().run_in_executor(
-            self._pool, self._synth, text, voice or self.default_voice, emotion, style)
+            self._pool, self._synth, text, voice or self.default_voice, emotion, style, speed)
 
 
 def _atempo(wav: bytes, speed: float) -> bytes | None:
     """Time-stretch without changing pitch (ffmpeg atempo)."""
     try:
+        speed = min(max(speed, 0.5), 4.0)
         p = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-filter:a", f"atempo={speed:.3f}",
                             "-f", "wav", "pipe:1"], input=wav, capture_output=True, timeout=20)
-        return p.stdout if p.returncode == 0 and p.stdout else None
+        return _rewrap(p.stdout) if p.returncode == 0 and p.stdout else None
     except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def _rewrap(wav: bytes) -> bytes | None:
+    """ffmpeg cannot seek on a pipe, so it leaves the RIFF/data sizes as 0xFFFFFFFF; rewrite
+    the header with the real sizes so every consumer (browser, wave module) gets the length."""
+    try:
+        with wave.open(io.BytesIO(wav), "rb") as r:
+            params = r.getparams()
+            frames = r.readframes(r.getnframes())
+        out = io.BytesIO()
+        with wave.open(out, "wb") as w:
+            w.setparams(params._replace(nframes=len(frames) // max(1, params.sampwidth * params.nchannels)))
+            w.writeframes(frames)
+        return out.getvalue()
+    except Exception:  # noqa: BLE001
         return None

@@ -8,6 +8,8 @@ import random
 import re
 import time
 import uuid
+import wave
+import io
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
@@ -52,6 +54,28 @@ def split_sentences(text: str) -> list[str]:
         else:
             out.append(p)
     return out or [text]
+
+
+def apply_gain(wav_bytes: bytes, gain: float) -> bytes:
+    """Scale 16-bit PCM WAV samples by `gain`, soft-limited so boosts do not clip harshly."""
+    try:
+        import numpy as np
+        with wave.open(io.BytesIO(wav_bytes), "rb") as r:
+            params = r.getparams()
+            if params.sampwidth != 2:
+                return wav_bytes
+            pcm = np.frombuffer(r.readframes(r.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+        x = pcm * gain
+        if gain > 1.0:
+            x = np.tanh(x * 1.2) / np.tanh(1.2)
+        x = np.clip(x, -0.99, 0.99)
+        out = io.BytesIO()
+        with wave.open(out, "wb") as w:
+            w.setparams(params._replace(nframes=len(x) // max(1, params.nchannels)))
+            w.writeframes((x * 32767.0).astype(np.int16).tobytes())
+        return out.getvalue()
+    except Exception:  # noqa: BLE001
+        return wav_bytes
 
 
 @dataclass
@@ -348,9 +372,23 @@ class Brain:
     def tts_streaming(self) -> bool:
         return bool(self.v.get("tts_streaming", True))
 
+    @property
+    def engine(self) -> str:
+        return "qwen" if self.tts.__class__.__name__ == "QwenTTS" else "piper"
+
     async def synth(self, text: str, persona: Any, emotion: str) -> bytes:
-        voice = persona.speaker if self.tts.__class__.__name__ == "QwenTTS" else persona.voice
-        return await self.tts.synthesize(text, voice, emotion, style=persona.style)
+        voice = persona.speaker if self.engine == "qwen" else persona.voice
+        wav = await self.tts.synthesize(text, voice, emotion, style=persona.style,
+                                        speed=float(getattr(persona, "speed", 1.0)))
+        gain = float(getattr(persona, "volume", 1.0))
+        return apply_gain(wav, gain) if abs(gain - 1.0) > 0.01 else wav
+
+    async def preview(self, name: str, text: str, emotion: str = "neutral") -> str:
+        """Synthesize `text` with the persona configured for `name` (connected or not) and return
+        an /audio URL for the settings page to play locally."""
+        persona = self.personas.for_name(name)
+        wav = await self.synth(text, persona, emotion)
+        return f"/audio/{self.audio.put(wav)}.wav"
 
     async def run(self) -> None:
         while True:

@@ -85,12 +85,12 @@ class TTS:
                 self._voices[name] = PiperVoice.load(str(path))
         return self._voices[name]
 
-    def _synth(self, text: str, voice: str, emotion: str) -> bytes:
+    def _synth(self, text: str, voice: str, emotion: str, speed_mul: float = 1.0) -> bytes:
         from piper.config import SynthesisConfig
 
         v = self._voice(voice)
         rate, noise, noise_w, gain = EMOTIONS.get(emotion, EMOTIONS["neutral"])
-        speed = float(self.opts.get("speed", 1.15)) * rate
+        speed = float(self.opts.get("speed", 1.15)) * rate * max(speed_mul, 0.1)
         if not self.opts.get("emotion", True):
             noise, noise_w, gain = EMOTIONS["neutral"][1:]
         cfg = SynthesisConfig(length_scale=1.0 / max(speed, 0.3), noise_scale=noise, noise_w_scale=noise_w)
@@ -110,9 +110,9 @@ class TTS:
         return out.getvalue()
 
     async def synthesize(self, text: str, voice: str | None = None, emotion: str = "neutral",
-                         style: str | None = None) -> bytes:
+                         style: str | None = None, speed: float = 1.0) -> bytes:
         return await asyncio.get_running_loop().run_in_executor(
-            self._pool, self._synth, text, voice or self.default_voice, emotion)
+            self._pool, self._synth, text, voice or self.default_voice, emotion, speed)
 
     async def preload(self, names: list[str]) -> None:
         for n in names:

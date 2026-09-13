@@ -53,6 +53,25 @@ restart needed. Highlights:
 | `voice.relay_human_voice` | also play a player's recording to teammates' pages |
 | `voice.silence_ms`, `max_utterance_s`, `ptt_timeout_s` | when an utterance ends |
 
+## Settings page
+
+**https://192.168.1.79:8443/settings** (the ⚙ link on the voice page) shows every bot the game
+reports, online ones first with their team and class, plus any configured-but-offline persona. Per
+bot you can set voiced on/off, the Qwen speaker or Piper voice, the voice style sentence, the
+personality, a speed multiplier and a volume gain, and press **Test** to hear a line rendered with
+those settings right in the browser (any emotion tag, any test text). Bots without their own entry
+follow **Default**; "use default" drops a bot's overrides again, and *Add bot* creates an entry for
+a bot that is not on the server right now.
+
+The Global section covers the hot-reloadable `[tts]`, `[policy]` and `[voice]` keys. Everything
+saves as you change it: bots to `personas.toml` (rewritten, header comment kept) and globals to
+`config.toml` (edited in place, comments kept), and applies to the next line spoken. Hand edits to
+either file are still picked up within a few seconds. The TTS engine itself still needs a restart.
+
+REST behind it: `GET /api/settings`, `PUT /api/settings/bot/{name}`, `DELETE /api/settings/bot/{name}`,
+`PUT /api/settings/default`, `PUT /api/settings/global` (`{"policy": {"rating": "r"}}`),
+`POST /api/settings/preview` (`{"bot": "Walter", "text": "...", "emotion": "angry"}` → `audio_url`).
+
 ## Voices
 
 `[tts] engine = "qwen"` uses **Qwen3-TTS 1.7B CustomVoice** on the GPU: two English male presets

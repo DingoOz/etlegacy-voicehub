@@ -13,6 +13,7 @@ from .game_bridge import GameBridge, Rcon
 from .game_events import EventTailer, GameState
 from .llm import LLM
 from .personas import Personas
+from .settings import Settings
 from .stt import STT
 from .tls import ensure_cert
 from .tts import TTS
@@ -38,15 +39,18 @@ async def main() -> None:
     llm = LLM(cfg.llm)
     if cfg.tts.get("engine", "qwen") == "qwen":
         tts = QwenTTS(cfg.tts, cfg.tts.get("default_speaker", "Ryan"), cfg.tts.get("default_style", ""))
-        personas = Personas(cfg.personas, cfg.tts.get("default_voice", "en_US-lessac-medium"), tts.default_voice)
+        personas = Personas(cfg.personas, cfg.tts.get("default_voice", "en_US-lessac-medium"), tts.default_voice,
+                            path=cfg.root / "personas.toml")
     else:
         tts = TTS(cfg.path(cfg.tts.get("voices_dir", "voices")), cfg.tts.get("default_voice", "en_US-lessac-medium"), cfg.tts)
-        personas = Personas(cfg.personas, tts.default_voice, cfg.tts.get("default_speaker", "Ryan"))
+        personas = Personas(cfg.personas, tts.default_voice, cfg.tts.get("default_speaker", "Ryan"),
+                            path=cfg.root / "personas.toml")
     hub = Hub(state, cfg.voice)
     brain = Brain(cfg.policy, cfg.voice, state, bridge, stt, llm, tts, personas, hub)
     brain.page_url = cfg.web.get("public_url") or f"https://{cfg.web.get('cert_sans', ['localhost'])[0]}:{cfg.web.get('https_port', 8443)}"
+    settings = Settings(cfg.root, {"tts": cfg.tts, "policy": cfg.policy, "voice": cfg.voice}, personas)
     ctx = {"state": state, "brain": brain, "hub": hub, "llm": llm, "rcon": rcon, "stt": stt, "tts": tts,
-           "voice": cfg.voice, "started": time.time()}
+           "voice": cfg.voice, "settings": settings, "started": time.time()}
     app = create_app(ctx)
 
     tailer = EventTailer(exchange / "events.jsonl", state, events)
@@ -65,22 +69,31 @@ async def main() -> None:
             await asyncio.sleep(30)
 
     async def config_reload() -> None:
-        """Pick up edits to [policy] and [voice] in config.toml without a restart."""
+        """Pick up hand edits to config.toml ([policy], [voice], [tts]) and personas.toml without a
+        restart. Writes made by the settings page are already live and are skipped."""
         path = cfg.root / "config.toml"
+        ppath = cfg.root / "personas.toml"
         last = path.stat().st_mtime
+        plast = ppath.stat().st_mtime if ppath.exists() else 0.0
         while True:
             await asyncio.sleep(3)
             try:
                 m = path.stat().st_mtime
-                if m == last:
-                    continue
-                last = m
-                new = cfgmod.load(cfg.root)
-                cfg.policy.clear(); cfg.policy.update(new.policy)
-                cfg.voice.clear(); cfg.voice.update(new.voice)
-                cfg.tts.clear(); cfg.tts.update(new.tts)
-                log.info("config.toml reloaded: policy=%s voice=%s", cfg.policy, cfg.voice)
-                await hub.broadcast({"type": "settings", "voice": cfg.voice})
+                if m != last:
+                    last = m
+                    if m != settings.last_write:
+                        new = cfgmod.load(cfg.root)
+                        cfg.policy.clear(); cfg.policy.update(new.policy)
+                        cfg.voice.clear(); cfg.voice.update(new.voice)
+                        cfg.tts.clear(); cfg.tts.update(new.tts)
+                        log.info("config.toml reloaded: policy=%s voice=%s", cfg.policy, cfg.voice)
+                        await hub.broadcast({"type": "settings", "voice": cfg.voice})
+                pm = ppath.stat().st_mtime if ppath.exists() else 0.0
+                if pm != plast:
+                    plast = pm
+                    if pm != settings.personas_last_write:
+                        personas.load(cfgmod.load(cfg.root).personas)
+                        log.info("personas.toml reloaded (%d bots)", len(personas.bots))
             except Exception as e:  # noqa: BLE001
                 log.warning("config reload failed: %s", e)
 

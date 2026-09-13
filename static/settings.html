@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ET Voice settings</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="settings">
+<header>
+  <div class="title"><a href="/">ET Voice</a> · settings <span id="map"></span></div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">loading</span></div>
+</header>
+
+<section class="card">
+  <div class="row between">
+    <div>
+      <b>Bots</b> <span class="small">online bots first; a bot without its own settings uses <em>Default</em>. Changes save as you make them and apply to the next line the bot speaks.</span>
+    </div>
+    <div class="row">
+      <span id="engine" class="pill"></span>
+      <label>Add bot <input id="newbot" type="text" placeholder="name" size="12"></label>
+      <button id="addbot">Add</button>
+    </div>
+  </div>
+  <div class="row">
+    <label>Test line <input id="testtext" type="text" size="40" value="Radio check. Can anyone hear me out there?"></label>
+    <label>Emotion <select id="testemotion"></select></label>
+  </div>
+  <div id="bots" class="bots"></div>
+</section>
+
+<section class="card">
+  <div class="row between"><b>Default voice and persona</b> <span class="small">used by every bot without its own entry</span></div>
+  <div id="default" class="bots"></div>
+</section>
+
+<section class="card">
+  <b>Global</b> <span class="small">saved to config.toml; the engine itself (Qwen3-TTS / Piper) needs a restart to change.</span>
+  <div class="global">
+    <div><h4>Speech</h4><div id="g-tts" class="fields"></div></div>
+    <div><h4>Channels and mic</h4><div id="g-voice" class="fields"></div></div>
+    <div><h4>Chatter policy</h4><div id="g-policy" class="fields"></div></div>
+  </div>
+</section>
+
+<template id="bot-card">
+  <div class="bot">
+    <div class="bot-head">
+      <span class="name"></span>
+      <span class="where pill"></span>
+      <label class="toggle"><input class="f-voiced" type="checkbox"> voiced</label>
+      <span class="grow"></span>
+      <button class="test">▶ Test</button>
+      <button class="reset small-btn" title="Remove this bot's own settings; it uses Default again">use default</button>
+      <span class="saved small"></span>
+    </div>
+    <div class="grid">
+      <label class="qwen">Qwen speaker <select class="f-speaker"></select></label>
+      <label class="piper">Piper voice <select class="f-voice"></select></label>
+      <label>Speed <input class="f-speed" type="range" min="0.5" max="2" step="0.05"> <output class="o-speed"></output></label>
+      <label>Volume <input class="f-volume" type="range" min="0.2" max="3" step="0.1"> <output class="o-volume"></output></label>
+      <label class="wide qwen">Voice style <input class="f-style" type="text" placeholder="e.g. A young man in his twenties, gruff and grumbling."></label>
+      <label class="wide">Personality <textarea class="f-persona" rows="2" placeholder="who this bot is, in a sentence"></textarea></label>
+    </div>
+  </div>
+</template>
+
+<script src="/static/settings.js"></script>
+</body>
+</html>

@@ -4,6 +4,9 @@
 #   voice   = Piper voice (engine = "piper")
 #   speaker = Qwen3-TTS preset (engine = "qwen"): Ryan or Aiden are the English male presets
 #   style   = Qwen3-TTS voice description, prepended to the emotion instruction
+#   speed   = playback rate multiplier on top of [tts] speed (1.0 = unchanged)
+#   volume  = gain applied to this bot's audio (1.0 = unchanged)
+# This file is rewritten by the settings page (https://<hub>/settings); comments below are not kept.
 
 [default]
 voiced = true
@@ -17,6 +20,8 @@ voice = "en_GB-alan-medium"
 speaker = "Aiden"
 style = "A young man in his early twenties with a gruff, grumbling delivery."
 persona = "gruff Yorkshire engineer, veteran of a hundred LAN parties, complains about everything but always builds the bridge"
+speed = 1.0
+volume = 1.0
 
 [bots.Merki]
 voice = "en_US-ryan-medium"

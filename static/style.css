@@ -34,3 +34,36 @@ ul { margin:8px 0 0; padding-left:18px; color:var(--muted); }
 .line.voice { border-left:3px solid var(--ok); }
 pre.bind { background:#111; padding:10px; border-radius:8px; user-select:all; font-size:.9rem; overflow-x:auto; }
 kbd { background:#333; padding:1px 5px; border-radius:4px; font-size:.85em; }
+
+/* ---- settings page ---- */
+.title a { color: inherit; text-decoration: none; }
+.row.between { justify-content: space-between; }
+.grow { flex: 1; }
+.bots { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.bot { background: #262a31; border-radius: 10px; padding: 10px 12px; border-left: 3px solid var(--bot); }
+.bot.offline { border-left-color: #555; opacity: .8; }
+.bot.unvoiced { border-left-color: #444; }
+.bot.inherits .grid { opacity: .75; }
+.bot-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.bot-head .name { font-weight: 700; font-size: 1.05rem; }
+.pill.off { color: #888; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 16px; margin-top: 8px; }
+.grid label { display: flex; align-items: center; gap: 8px; margin: 0; }
+.grid label.wide { grid-column: 1 / -1; }
+.grid select, .grid input[type=text], .grid textarea { flex: 1; min-width: 0; font: inherit; background: #14161a; color: var(--fg); border: 1px solid #3a3f47; border-radius: 6px; padding: 5px 8px; }
+.grid input[type=range] { flex: 1; }
+.grid output { min-width: 3.5em; color: var(--muted); font-size: .9rem; }
+button.small-btn { padding: 6px 10px; font-size: .85rem; background: #3a3f47; color: var(--fg); }
+.saved { min-width: 4em; }
+body.engine-qwen .piper, body.engine-piper .qwen { display: none; }
+.global { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; margin-top: 8px; }
+.global h4 { margin: 8px 0 4px; color: var(--muted); font-weight: 600; }
+.fields { display: flex; flex-direction: column; gap: 4px; }
+.fields label { margin: 0; gap: 8px; }
+.fields input[type=number] { width: 6.5em; font: inherit; background: #14161a; color: var(--fg); border: 1px solid #3a3f47; border-radius: 6px; padding: 3px 6px; }
+.fields select { font: inherit; background: #14161a; color: var(--fg); border: 1px solid #3a3f47; border-radius: 6px; padding: 3px 6px; }
+.fields label.ok::after { content: " ✓"; color: var(--ok); }
+.fields label.err::after { content: " ✗"; color: var(--bad); }
+input#newbot, input#testtext { font: inherit; background: #14161a; color: var(--fg); border: 1px solid #3a3f47; border-radius: 6px; padding: 5px 8px; }
+.gear { color: var(--muted); text-decoration: none; margin-right: 10px; }
+.gear:hover { color: var(--accent); }

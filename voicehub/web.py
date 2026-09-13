@@ -89,6 +89,64 @@ def create_app(ctx: dict[str, Any]) -> FastAPI:
     async def index():
         return FileResponse(STATIC / "index.html")
 
+    @app.get("/settings")
+    async def settings_page():
+        return FileResponse(STATIC / "settings.html")
+
+    # ---------------------------------------------------------------- settings API
+    @app.get("/api/settings")
+    async def settings_get():
+        return ctx["settings"].snapshot(ctx["state"], ctx["brain"])
+
+    @app.put("/api/settings/default")
+    async def settings_default(request: Request):
+        body = await request.json()
+        try:
+            return {"default": ctx["settings"].update_bot(None, body)}
+        except (ValueError, TypeError) as e:
+            raise HTTPException(400, str(e))
+
+    @app.put("/api/settings/bot/{name}")
+    async def settings_bot(name: str, request: Request):
+        body = await request.json()
+        name = name.strip()
+        if not name or len(name) > 36:
+            raise HTTPException(400, "bad bot name")
+        try:
+            return {"bot": ctx["settings"].update_bot(name, body)}
+        except (ValueError, TypeError) as e:
+            raise HTTPException(400, str(e))
+
+    @app.delete("/api/settings/bot/{name}")
+    async def settings_bot_reset(name: str):
+        return {"removed": ctx["settings"].reset_bot(name.strip())}
+
+    @app.put("/api/settings/global")
+    async def settings_global(request: Request):
+        body = await request.json()
+        try:
+            applied = ctx["settings"].update_global(body)
+        except (ValueError, TypeError) as e:
+            raise HTTPException(400, str(e))
+        if "voice" in applied:
+            await hub.broadcast({"type": "settings", "voice": ctx["voice"]})
+        return {"applied": applied}
+
+    @app.post("/api/settings/preview")
+    async def settings_preview(request: Request):
+        """Synthesize a line with a bot's current voice settings; the page plays it locally."""
+        body = await request.json()
+        name = str(body.get("bot") or "default").strip()
+        text = str(body.get("text") or "Radio check. Can anyone hear me out there?").strip()[:300]
+        emotion = str(body.get("emotion") or "neutral").lower()
+        if not name:
+            raise HTTPException(400, "bot name required")
+        try:
+            url = await ctx["brain"].preview(name, text, emotion)
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+        return {"audio_url": url}
+
     @app.get("/api/state")
     async def state():
         brain = ctx["brain"]
