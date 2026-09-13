@@ -42,11 +42,8 @@ def load(root: Path | None = None) -> Config:
     root = (root or Path(__file__).resolve().parent.parent).resolve()
     with open(root / "config.toml", "rb") as f:
         raw = tomllib.load(f)
-    personas: dict[str, Any] = {}
-    pfile = root / "personas.toml"
-    if pfile.exists():
-        with open(pfile, "rb") as f:
-            personas = tomllib.load(f)
+    from .personas import load_with_fallback
+    personas = load_with_fallback(root / "personas.toml")
     return Config(
         root=root,
         web=raw.get("web", {}),

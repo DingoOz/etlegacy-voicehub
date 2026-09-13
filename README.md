@@ -68,6 +68,11 @@ saves as you change it: bots to `personas.toml` (rewritten, header comment kept)
 `config.toml` (edited in place, comments kept), and applies to the next line spoken. Hand edits to
 either file are still picked up within a few seconds. The TTS engine itself still needs a restart.
 
+Personas survive restarts and reboots: `personas.toml` is written atomically and fsynced, the
+previous version is copied to `backups/` on every save (newest 20 kept), and if the file is ever
+missing, empty or unparseable at startup the newest good backup is restored automatically (the bad
+file is kept as `personas.toml.corrupt`). Commit `personas.toml` to git for an off-box copy.
+
 REST behind it: `GET /api/settings`, `PUT /api/settings/bot/{name}`, `DELETE /api/settings/bot/{name}`,
 `PUT /api/settings/default`, `PUT /api/settings/global` (`{"policy": {"rating": "r"}}`),
 `POST /api/settings/preview` (`{"bot": "Walter", "text": "...", "emotion": "angry"}` → `audio_url`).

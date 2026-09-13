@@ -6,3 +6,6 @@ voices/
 __pycache__/
 *.pyc
 .rconpassword
+backups/
+*.corrupt
+*.tmp

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
+import time
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
@@ -170,10 +172,74 @@ class Personas:
         return True
 
     def _save(self) -> None:
+        """Atomic, fsynced write plus a rotating backup of the previous file, so a crash or a
+        power cut mid-write never leaves an empty or half-written personas.toml."""
         if not self.path:
             return
+        text = dump_personas(self.raw)
+        if self.path.exists():
+            backup(self.path)
         tmp = self.path.with_suffix(".toml.tmp")
-        tmp.write_text(dump_personas(self.raw), encoding="utf-8")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
         tmp.replace(self.path)
+        try:
+            dfd = os.open(self.path.parent, os.O_RDONLY)
+            os.fsync(dfd); os.close(dfd)
+        except OSError:
+            pass
         self.last_write = self.path.stat().st_mtime
         log.info("personas.toml saved (%d bots)", len(self.raw["bots"]))
+
+
+BACKUP_DIR = "backups"
+BACKUP_KEEP = 20
+
+
+def backup(path: Path) -> Path | None:
+    """Copy `path` to backups/<name>.<timestamp>, keeping the newest BACKUP_KEEP copies."""
+    try:
+        d = path.parent / BACKUP_DIR
+        d.mkdir(exist_ok=True)
+        dest = d / f"{path.name}.{time.strftime('%Y%m%d-%H%M%S')}"
+        if dest.exists():
+            dest = d / f"{path.name}.{time.strftime('%Y%m%d-%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+        dest.write_bytes(path.read_bytes())
+        old = sorted(d.glob(f"{path.name}.*"), key=lambda p: p.stat().st_mtime)
+        for p in old[:-BACKUP_KEEP]:
+            p.unlink(missing_ok=True)
+        return dest
+    except OSError as e:
+        log.warning("backup of %s failed: %s", path.name, e)
+        return None
+
+
+def load_with_fallback(path: Path) -> dict[str, Any]:
+    """Parse personas.toml; if it is missing, empty or corrupt, use the newest parseable backup
+    (and put it back in place) rather than starting with no personas."""
+    import tomllib
+    candidates = [path] + sorted((path.parent / BACKUP_DIR).glob(f"{path.name}.*"),
+                                 key=lambda p: p.stat().st_mtime, reverse=True)
+    for i, cand in enumerate(candidates):
+        try:
+            data = cand.read_bytes()
+            if not data.strip():
+                raise ValueError("empty file")
+            raw = tomllib.loads(data.decode("utf-8"))
+        except (OSError, ValueError, UnicodeDecodeError) as e:
+            if i == 0:
+                log.error("%s unreadable (%s); trying backups", path.name, e)
+            continue
+        if i > 0:
+            log.warning("restored %s from backup %s", path.name, cand.name)
+            try:
+                if path.exists():
+                    path.replace(path.with_suffix(".toml.corrupt"))
+                path.write_bytes(data)
+            except OSError as e:
+                log.warning("could not restore %s: %s", path.name, e)
+        return raw
+    log.error("no usable %s or backup; starting with defaults only", path.name)
+    return {}
