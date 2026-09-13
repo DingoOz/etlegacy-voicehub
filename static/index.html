@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ET Voice</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="title">ET Voice <span id="map"></span></div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">connecting</span></div>
+</header>
+
+<section id="setup" class="card">
+  <p>Hear your team's bots talk and talk back to them. Pick your in-game name, then hold the big button, press your in-game key, or leave the mic open.</p>
+  <p class="small">First visit: your browser will warn about the self-signed certificate. Choose <em>Advanced → proceed</em> once; it is the LAN server, not the internet.</p>
+  <label>I am
+    <select id="who"><option value="">(just listening)</option></select>
+  </label>
+  <button id="join" class="primary">Join</button>
+</section>
+
+<section id="main" class="card" hidden>
+  <div class="row">
+    <label>I am <select id="who2"></select></label>
+    <span id="team" class="pill"></span>
+    <label>Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="1"></label>
+    <label><input id="mute" type="checkbox"> mute</label>
+  </div>
+  <div class="row">
+    <label class="toggle"><input id="openmic" type="checkbox"> <b>Always listening</b> <span class="small">(open mic, sends when you pause)</span></label>
+    <span id="level" class="level"><i></i></span>
+  </div>
+  <button id="ptt" class="ptt">Hold to talk</button>
+  <div id="hint" class="small">Space bar works too. Say a bot's name to talk to that bot.</div>
+  <div id="feed" class="feed"></div>
+  <details open><summary>In-game keys</summary>
+    <p class="small">Open the game console (<kbd>~</kbd>) once and paste:</p>
+    <pre class="bind">bind v "cmd vh_talk"
+bind b "cmd vh_mic"</pre>
+    <p class="small"><b>V</b> starts listening on this page and sends when you stop talking (press again to send at once).
+    <b>B</b> toggles always-listening. Keep this page open in the background; it must have picked your name.</p>
+  </details>
+  <details><summary>Bots on the server</summary><ul id="bots"></ul></details>
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

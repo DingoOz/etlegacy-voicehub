@@ -1,0 +1,38 @@
+[project]
+name = "voicehub"
+version = "0.1.0"
+description = "LAN voice bridge: LLM-driven, spoken Omni-bots for ET: Legacy"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "websockets>=12",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+    "faster-whisper>=1.1",
+    "piper-tts>=1.3",
+    "nvidia-cublas-cu12",
+    "nvidia-cudnn-cu12",
+    "qwen-tts>=0.1.1",
+    "soundfile>=0.14.0",
+    "torch==2.9.1",
+    "torchaudio==2.9.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["voicehub"]
+
+# Pascal GPUs (GTX 1070, Tesla P100) are sm_60/61: only the CUDA 12.6 PyTorch wheels still ship kernels for them.
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchaudio = { index = "pytorch-cu126" }
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

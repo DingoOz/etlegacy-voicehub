@@ -1,0 +1,8 @@
+# Self-signed TLS cert + private key, regenerated on first start
+certs/
+# Piper .onnx models: uv run python -m piper.download_voices --data-dir voices <name>
+voices/
+.venv/
+__pycache__/
+*.pyc
+.rconpassword

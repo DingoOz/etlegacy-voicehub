@@ -1,0 +1,91 @@
+# voicehub configuration. Paths are relative to this file unless absolute.
+
+[web]
+host = "0.0.0.0"
+https_port = 8443          # self-signed TLS; browsers need a secure context for the mic
+http_port = 8081           # plain http, usable as http://localhost:8081 on the server itself
+tls = true
+cert_file = "certs/voicehub.crt"
+key_file = "certs/voicehub.key"
+cert_sans = ["192.168.1.79", "100.83.60.31", "localhost"]
+public_url = "https://192.168.1.79:8443"   # shown to players in-game when their page is not open
+
+[game]
+homepath = "../homepath/legacy"          # where the Lua module writes voicehub/events.jsonl
+rcon_host = "127.0.0.1"
+rcon_port = 27960
+rcon_password_file = "../.rconpassword"
+
+[stt]
+model = "small.en"
+device = "cuda"            # "cuda" or "cpu"; falls back to CPU automatically on failure
+device_index = 1
+compute_type = "float32"   # Pascal GPUs only support float32 / int8 on CUDA
+cpu_compute_type = "int8"
+cpu_threads = 16
+language = "en"
+
+[llm]
+url = "http://localhost:11434"
+model = "qwen3.5:4b"
+think = false
+num_predict = 60
+temperature = 0.9
+keep_alive = -1            # keep the model resident; loading takes ~1 minute
+timeout_s = 12
+max_words = 30
+max_chars = 140
+
+[tts]
+engine = "qwen"            # "qwen" (Qwen3-TTS, GPU, expressive, ~3 s compute per second of audio here)
+                           # or "piper" (CPU, instant, flat). Needs a restart to switch.
+speed = 1.15               # playback rate; qwen: ffmpeg time-stretch, piper: synthesis rate
+emotion = true             # let the LLM's [emotion] tag drive the delivery
+
+# qwen: preset speakers are Ryan and Aiden (English male); the style text is prepended to every
+# emotion instruction. Per-bot overrides live in personas.toml (speaker = / style =).
+qwen_model = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+qwen_device = "cuda:0"     # torch order: cuda:0 = Tesla P100, cuda:1 = GTX 1070 (both equally slow, CPU-bound)
+qwen_dtype = "float16"     # 0.6B model needs float32 (float16 overflows); 1.7B is fine in float16 (4.4 GB)
+qwen_max_new_tokens = 400  # ~30 s of audio cap
+qwen_fast = true           # CUDA-graph decode loop (voicehub/fast_qwen.py); false = stock HuggingFace loop
+default_speaker = "Ryan"
+default_style = "A young man, late teens to early twenties, gamer at a LAN party."
+
+# piper
+voices_dir = "voices"
+default_voice = "en_US-lessac-medium"
+
+# [policy], [voice] and [tts] speed/emotion are re-read within a few seconds of saving this file; no restart needed.
+
+[policy]
+rating = "pg13"                   # how NSFW the bots may get: "family", "pg13", "r", "explicit"
+global_min_gap_s = 6.0            # minimum gap between any two bot lines
+unprompted_cooldown_s = 45.0      # per bot, for lines nobody asked for
+kill_banter_prob = 0.3
+revive_thanks_prob = 0.6
+greet_prob = 0.8
+mapstart_prob = 0.5
+open_mic_reply_prob = 0.25        # open mic: chance a bot answers speech that did not name a bot
+max_queue = 3
+context_lines = 20
+
+# Bots speaking up on their own when nothing is going on.
+idle_chatter = true
+idle_chatter_interval_s = 120     # average seconds between spontaneous lines; 0 turns it off
+idle_chatter_jitter = 0.5         # 0.5 = each wait is 50%..150% of the interval
+idle_chatter_min_quiet_s = 20     # skip the turn if any bot spoke this recently
+
+# Bots talking to each other (same team) about what they are doing in the game.
+bot_reply_prob = 0.7              # chance a teammate bot answers a bot's line
+bot_thread_max = 3                # longest bot-to-bot exchange (lines) before it stops
+
+[voice]
+team_only = true                  # speech, bot replies and bot audio stay within one team
+spectators_hear_all = true        # spectators (and pages that did not pick a name) hear every team
+relay_human_voice = false         # also play players' own recordings to their teammates' pages
+open_mic_default = false          # pages start in always-listening mode
+silence_ms = 900                  # open mic / in-game key: end of utterance after this much silence
+max_utterance_s = 15              # hard cap per utterance
+ptt_timeout_s = 5                 # in-game key: give up if nobody talks within this time
+tts_streaming = true              # send bot lines sentence by sentence as each is synthesized

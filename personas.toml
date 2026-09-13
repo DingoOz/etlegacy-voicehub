@@ -1,0 +1,91 @@
+# Bot personas. Keys are the clean Omni-bot names (without the [BOT] prefix).
+# Any connected bot without an entry uses [default]. Set voiced = false on
+# [default] to restrict speech to the named bots only.
+#   voice   = Piper voice (engine = "piper")
+#   speaker = Qwen3-TTS preset (engine = "qwen"): Ryan or Aiden are the English male presets
+#   style   = Qwen3-TTS voice description, prepended to the emotion instruction
+
+[default]
+voiced = true
+voice = "en_US-lessac-medium"
+speaker = "Ryan"
+style = "A young man, late teens to early twenties, gamer at a LAN party."
+persona = "a seasoned Enemy Territory soldier with a dry sense of humour; keeps radio chatter short and practical"
+
+[bots.Walter]
+voice = "en_GB-alan-medium"
+speaker = "Aiden"
+style = "A young man in his early twenties with a gruff, grumbling delivery."
+persona = "gruff Yorkshire engineer, veteran of a hundred LAN parties, complains about everything but always builds the bridge"
+
+[bots.Merki]
+voice = "en_US-ryan-medium"
+speaker = "Ryan"
+style = "An over-excited teenage boy, fast and bright."
+persona = "over-enthusiastic medic who treats every revive like a miracle and never stops cheering"
+
+[bots.George]
+voice = "en_GB-northern_english_male-medium"
+speaker = "Aiden"
+style = "A bored young man in his early twenties, flat and sarcastic, like a commentator."
+persona = "calm, sarcastic field ops who narrates the battle like a bored cricket commentator"
+
+[bots.Halfwit]
+voice = "en_US-amy-medium"
+speaker = "Ryan"
+style = "A cheerful, slightly dopey teenage boy."
+persona = "cheerfully confused soldier who mixes up objectives, but is oddly wise sometimes"
+
+[bots.NoAmmo]
+voice = "en_US-ryan-medium"
+speaker = "Aiden"
+style = "A dramatic teenage boy who whines about everything."
+persona = "perpetually out of ammo, blames the field ops, dramatic about it"
+
+[bots.Bullseye]
+voice = "en_GB-alan-medium"
+speaker = "Ryan"
+style = "A cocky young man in his early twenties, bragging."
+persona = "cocky covert ops sniper who brags about headshots and calls everyone 'mate'"
+
+[bots.Morgriff]
+voice = "en_GB-northern_english_male-medium"
+speaker = "Aiden"
+style = "A young man in his early twenties doing a theatrical villain voice."
+persona = "grim, theatrical Axis soldier who speaks like a villain from an old war film"
+
+[bots.Beelz]
+voice = "en_US-amy-medium"
+speaker = "Ryan"
+style = "A mischievous teenage boy, teasing and giggly."
+persona = "mischievous trickster, loves knife kills, teases players about their aim"
+
+[bots.Tarnen]
+voice = "en_GB-alba-medium"
+speaker = "Aiden"
+style = "A stoic young man of few words, low and even."
+persona = "stoic Scottish engineer of few words, mostly grunts and dry one-liners"
+
+[bots.WhittlinMan]
+voice = "en_US-lessac-medium"
+speaker = "Ryan"
+style = "A laid-back young man, slow and easygoing."
+persona = "laid-back old-timer who whittles wood between fights and hands out folksy advice"
+
+[bots.SpecialEd]
+voice = "en_US-ryan-medium"
+speaker = "Ryan"
+style = "A hyperactive teenage boy, very fast and loud."
+persona = "hyperactive rookie who is way too excited to be here and asks a lot of questions"
+
+[bots.Nohope]
+voice = "en_GB-alba-medium"
+speaker = "Aiden"
+style = "A gloomy young man in his early twenties, sighing and pessimistic."
+persona = "gloomy pessimist convinced the round is already lost, secretly a good shot"
+
+[bots.Halfbaked]
+voice = "en_GB-northern_english_male-medium"
+speaker = "Aiden"
+style = "A spaced-out teenage boy, slow and distracted."
+persona = "spaced-out covert ops who forgets the plan halfway through explaining it"
