@@ -74,8 +74,9 @@ REST behind it: `GET /api/settings`, `PUT /api/settings/bot/{name}`, `DELETE /ap
 
 ## Voices
 
-`[tts] engine = "qwen"` uses **Qwen3-TTS 1.7B CustomVoice** on the GPU: two English male presets
-(Ryan, Aiden), a per-bot `style` sentence (age, attitude) and an `[emotion]` tag the LLM puts in
+`[tts] engine = "qwen"` uses **Qwen3-TTS 1.7B CustomVoice** on the GPU: nine preset speakers, all of
+which speak English (male: aiden, dylan, eric, ryan, uncle_fu; female: ono_anna, serena, sohee,
+vivian), a per-bot `style` sentence (age, attitude) and an `[emotion]` tag the LLM puts in
 front of every line ("[excited] Yes! Got him!"), all passed as the instruct text. `engine = "piper"`
 is the old CPU path (instant, flat delivery; emotion only nudges rate and loudness).
 

@@ -42,14 +42,14 @@ engine = "qwen"            # "qwen" (Qwen3-TTS, GPU, expressive, ~3 s compute pe
 speed = 1.15               # playback rate; qwen: ffmpeg time-stretch, piper: synthesis rate
 emotion = true             # let the LLM's [emotion] tag drive the delivery
 
-# qwen: preset speakers are Ryan and Aiden (English male); the style text is prepended to every
+# qwen: preset speakers are aiden, dylan, eric, ryan, uncle_fu (male) and ono_anna, serena, sohee, vivian (female); the style text is prepended to every
 # emotion instruction. Per-bot overrides live in personas.toml (speaker = / style =).
 qwen_model = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
 qwen_device = "cuda:0"     # torch order: cuda:0 = Tesla P100, cuda:1 = GTX 1070 (both equally slow, CPU-bound)
 qwen_dtype = "float16"     # 0.6B model needs float32 (float16 overflows); 1.7B is fine in float16 (4.4 GB)
 qwen_max_new_tokens = 400  # ~30 s of audio cap
 qwen_fast = true           # CUDA-graph decode loop (voicehub/fast_qwen.py); false = stock HuggingFace loop
-default_speaker = "Ryan"
+default_speaker = "ryan"
 default_style = "A young man, late teens to early twenties, gamer at a LAN party."
 
 # piper

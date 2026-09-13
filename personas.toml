@@ -11,86 +11,122 @@
 [default]
 voiced = true
 voice = "en_US-lessac-medium"
-speaker = "Ryan"
+speaker = "ryan"
 style = "A young man, late teens to early twenties, gamer at a LAN party."
 persona = "a seasoned Enemy Territory soldier with a dry sense of humour; keeps radio chatter short and practical"
 
 [bots.Walter]
 voice = "en_GB-alan-medium"
-speaker = "Aiden"
-style = "A young man in his early twenties with a gruff, grumbling delivery."
+speaker = "uncle_fu"
+style = "An older man with a gruff, grumbling, world-weary delivery."
 persona = "gruff Yorkshire engineer, veteran of a hundred LAN parties, complains about everything but always builds the bridge"
 speed = 1.0
 volume = 1.0
 
 [bots.Merki]
 voice = "en_US-ryan-medium"
-speaker = "Ryan"
-style = "An over-excited teenage boy, fast and bright."
+speaker = "ono_anna"
+style = "An over-excited teenage girl, fast, bright and giggly."
 persona = "over-enthusiastic medic who treats every revive like a miracle and never stops cheering"
+voiced = true
+speed = 1.0
+volume = 1.0
 
 [bots.George]
 voice = "en_GB-northern_english_male-medium"
-speaker = "Aiden"
-style = "A bored young man in his early twenties, flat and sarcastic, like a commentator."
+speaker = "eric"
+style = "A bored young man, flat and sarcastic, like a commentator."
 persona = "calm, sarcastic field ops who narrates the battle like a bored cricket commentator"
 
 [bots.Halfwit]
 voice = "en_US-amy-medium"
-speaker = "Ryan"
-style = "A cheerful, slightly dopey teenage boy."
+speaker = "serena"
+style = "A cheerful, slightly dopey teenage girl, warm and unbothered."
 persona = "cheerfully confused soldier who mixes up objectives, but is oddly wise sometimes"
+voiced = true
+speed = 0.85
+volume = 1.0
 
 [bots.NoAmmo]
 voice = "en_US-ryan-medium"
-speaker = "Aiden"
-style = "A dramatic teenage boy who whines about everything."
-persona = "perpetually out of ammo, blames the field ops, dramatic about it"
+speaker = "sohee"
+style = "A dramatic teenage girl who whines about everything, exasperated sighs."
+persona = "perpetually out of ammo, blames the field ops, dramatic about it, calls everyone 'guys'"
 
 [bots.Bullseye]
 voice = "en_GB-alan-medium"
-speaker = "Ryan"
-style = "A cocky young man in his early twenties, bragging."
+speaker = "ryan"
+style = "A cocky young man in his early twenties, bragging and quick."
 persona = "cocky covert ops sniper who brags about headshots and calls everyone 'mate'"
 
 [bots.Morgriff]
 voice = "en_GB-northern_english_male-medium"
-speaker = "Aiden"
-style = "A young man in his early twenties doing a theatrical villain voice."
+speaker = "eric"
+style = "A young man doing a deep, theatrical villain voice, slow and menacing."
 persona = "grim, theatrical Axis soldier who speaks like a villain from an old war film"
 
 [bots.Beelz]
 voice = "en_US-amy-medium"
-speaker = "Ryan"
-style = "A mischievous teenage boy, teasing and giggly."
+speaker = "vivian"
+style = "A mischievous teenage girl, teasing and playful, a smirk in her voice."
 persona = "mischievous trickster, loves knife kills, teases players about their aim"
+voiced = true
+speed = 1.65
+volume = 1.0
 
 [bots.Tarnen]
 voice = "en_GB-alba-medium"
-speaker = "Aiden"
+speaker = "aiden"
 style = "A stoic young man of few words, low and even."
 persona = "stoic Scottish engineer of few words, mostly grunts and dry one-liners"
 
 [bots.WhittlinMan]
 voice = "en_US-lessac-medium"
-speaker = "Ryan"
-style = "A laid-back young man, slow and easygoing."
+speaker = "uncle_fu"
+style = "A laid-back older man, slow, easygoing, a bit of a drawl."
 persona = "laid-back old-timer who whittles wood between fights and hands out folksy advice"
 
 [bots.SpecialEd]
 voice = "en_US-ryan-medium"
-speaker = "Ryan"
-style = "A hyperactive teenage boy, very fast and loud."
+speaker = "dylan"
+style = "A hyperactive teenage boy, very fast and loud, cracking voice."
 persona = "hyperactive rookie who is way too excited to be here and asks a lot of questions"
 
 [bots.Nohope]
 voice = "en_GB-alba-medium"
-speaker = "Aiden"
-style = "A gloomy young man in his early twenties, sighing and pessimistic."
+speaker = "aiden"
+style = "A gloomy young man, sighing, slow and pessimistic."
 persona = "gloomy pessimist convinced the round is already lost, secretly a good shot"
 
 [bots.Halfbaked]
 voice = "en_GB-northern_english_male-medium"
-speaker = "Aiden"
-style = "A spaced-out teenage boy, slow and distracted."
+speaker = "dylan"
+style = "A spaced-out teenage boy, slow, distracted, trailing off."
 persona = "spaced-out covert ops who forgets the plan halfway through explaining it"
+
+[bots.Backfire]
+voiced = true
+speaker = "ryan"
+voice = "en_US-lessac-medium"
+speed = 1.0
+volume = 1.0
+style = "A calm young man, matter-of-fact, radio operator delivery."
+persona = "a seasoned Enemy Territory soldier with a dry sense of humour; keeps radio chatter short and practical"
+
+[bots.CraigChrist]
+voiced = true
+speaker = "eric"
+voice = "en_US-lessac-medium"
+speed = 1.0
+volume = 1.0
+style = "A young man in his twenties, relaxed and confident, gamer at a LAN party."
+persona = "a seasoned Enemy Territory soldier with a dry sense of humour; keeps radio chatter short and practical"
+
+[bots.Wens]
+voiced = true
+speaker = "dylan"
+voice = "en_US-lessac-medium"
+speed = 1.0
+volume = 1.0
+style = "A teenage boy, keen and chatty, gamer at a LAN party."
+persona = "a seasoned Enemy Territory soldier with a dry sense of humour; keeps radio chatter short and practical"

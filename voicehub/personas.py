@@ -15,7 +15,7 @@ HEADER = """# Bot personas. Keys are the clean Omni-bot names (without the [BOT]
 # Any connected bot without an entry uses [default]. Set voiced = false on
 # [default] to restrict speech to the named bots only.
 #   voice   = Piper voice (engine = "piper")
-#   speaker = Qwen3-TTS preset (engine = "qwen"): Ryan or Aiden are the English male presets
+#   speaker = Qwen3-TTS preset (engine = "qwen"): aiden, dylan, eric, ryan, uncle_fu (male); ono_anna, serena, sohee, vivian (female)
 #   style   = Qwen3-TTS voice description, prepended to the emotion instruction
 #   speed   = playback rate multiplier on top of [tts] speed (1.0 = unchanged)
 #   volume  = gain applied to this bot's audio (1.0 = unchanged)
