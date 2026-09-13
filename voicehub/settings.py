@@ -37,6 +37,9 @@ GLOBAL_FIELDS: dict[str, dict[str, tuple[type, Any, Any]]] = {
         "bot_thread_max": (int, 0, 10),
         "chitchat_prob": (float, 0, 1),
         "objective_prob": (float, 0, 1),
+        "orders": (bool, None, None),
+        "follow_radius_m": (float, 2, 200),
+        "max_followers": (int, 1, 12),
         "max_queue": (int, 1, 20),
     },
     "voice": {

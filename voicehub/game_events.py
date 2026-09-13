@@ -34,6 +34,12 @@ class Player:
     kills: int = 0
     deaths: int = 0
     recent: deque[str] = field(default_factory=lambda: deque(maxlen=5))   # this player's own latest doings
+    origin: tuple[float, float, float] | None = None                       # world position (game units, ~40 per metre)
+
+    def distance_to(self, other: "Player") -> float | None:
+        if not self.origin or not other.origin:
+            return None
+        return sum((a - b) ** 2 for a, b in zip(self.origin, other.origin)) ** 0.5
 
     def note(self, what: str) -> None:
         self.recent.append(what)
@@ -124,6 +130,11 @@ def _player_from(rec: dict[str, Any], old: Player | None = None) -> Player:
         kills=int(rec.get("kills") or 0),
         deaths=int(rec.get("deaths") or 0),
     )
+    o = rec.get("origin")
+    if isinstance(o, list) and len(o) == 3:
+        p.origin = (float(o[0]), float(o[1]), float(o[2]))
+    elif old and old.guid == p.guid:
+        p.origin = old.origin
     if old and old.guid == p.guid:
         p.recent = old.recent
     return p

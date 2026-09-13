@@ -38,6 +38,28 @@ coordination with a named teammate); a share of them (`policy.chitchat_prob`, de
 small talk drawn from each bot's `life` notes in `personas.toml` (pets, jobs, the vet visit), and
 bot-to-bot follow-ups stay on the same topic.
 
+## Voice orders to bots
+
+Say a bot's name and an order, by voice or in team chat, and that bot does it:
+
+| you say | the bot |
+|---|---|
+| "Walter, stick close" / "follow me" / "stay with me" / "cover me" | follows you, keeps within `policy.follow_radius_m` (25 m) |
+| "Walter, follow me, stay within 10 metres" | same with that radius |
+| "Walter, hold here" / "stay here" / "wait here" / "stop" | holds your current spot, facing your way |
+| "Walter, carry on" / "as you were" / "do your thing" | goes back to normal play |
+| "everyone stick close" / "bots hold here" | the same for every voiced bot on your team (up to `max_followers`) |
+
+The bot acknowledges in its own voice. Combat, aiming and class duties keep working while it follows;
+orders survive the bot dying and respawning, and end on map change or when you leave.
+
+This needs a small Omni-bot goal script on the server: copy `omnibot/goals/goal_vhorders.gm` into
+`<omni-bot path>/et/scripts/goals/` and load a map (a `map_restart` is not enough for Omni-bot to
+pick up new scripts). The hub drives it with `bot vh follow <botSlot> <playerSlot> <units>`,
+`bot vh stay`, `bot vh release`; `bot vh status`, `bot vh debug 1` and `bot vh wake 1` (bots play
+with no human on the server) help when testing from rcon. Turn the feature off with
+`policy.orders = false`.
+
 ## In-game keys
 
 Keep the voice page open in the background with your name picked, then in the game

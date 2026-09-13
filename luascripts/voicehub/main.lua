@@ -9,7 +9,7 @@
 -- commands (bound in-game, e.g.  bind v "cmd vh_talk"); everything else falls
 -- through, so it can be listed before WolfAdmin in lua_modules.
 
-local VERSION = "0.4"
+local VERSION = "0.5"
 local POLL_MS = 100
 local MAX_TEXT = 150
 local CONSOLE_ALLOW = { "playsound ", "bot " }
@@ -17,6 +17,7 @@ local CONSOLE_ALLOW = { "playsound ", "bot " }
 local HOME, EVENTS_PATH, INBOX_PATH
 local events_fh
 local inbox_offset = 0
+local last_announce, last_announce_lt = nil, 0
 local last_poll = 0
 local level_time = 0
 
@@ -178,6 +179,14 @@ local function gfield(i, name)
     return nil
 end
 
+local function origin_of(i)
+    local ok, o = pcall(et.gentity_get, i, "r.currentOrigin")
+    if ok and type(o) == "table" and o[1] then
+        return { math.floor(o[1]), math.floor(o[2]), math.floor(o[3]) }
+    end
+    return nil
+end
+
 local function slot_record(i)
     local ui = et.trap_GetUserinfo(i)
     if not ui or ui == "" then return nil end
@@ -196,6 +205,7 @@ local function slot_record(i)
         health = gfield(i, "health"),
         kills = gfield(i, "sess.kills"),
         deaths = gfield(i, "sess.deaths"),
+        origin = origin_of(i),
     }
 end
 
@@ -266,6 +276,20 @@ local function handle_command(cmd)
         emit_roster()
     elseif kind == "ping" then
         emit("pong", { id = cmd.id })
+    elseif kind == "probe" then
+        -- diagnostics: which et.* API names exist, and the fireteam configstrings
+        local names = {}
+        for k, _ in pairs(et) do names[#names + 1] = k end
+        table.sort(names)
+        local fts = {}
+        for i = 600, 1023 do   -- MAX_CONFIGSTRINGS is 1024; a higher index is a fatal engine error
+            local ok, cs = pcall(et.trap_GetConfigstring, i)
+            if ok and type(cs) == "string" and cs:find("\\id\\", 1, true) then
+                fts[#fts + 1] = { cs = i, value = cs }
+            end
+        end
+        emit("probe", { api = names, fireteams = fts, cs_fireteams = et.CS_FIRETEAMS })
+
     else
         log("unknown command: " .. tostring(kind))
     end
@@ -398,9 +422,15 @@ function et_Print(consoleText)
     end
     -- Objective announcements (map script wm_announce) reach the console as plain lines such as
     -- "Allies have breached the Old City wall". Chat is "say: ..." so it never matches.
+    -- ET: Legacy logs them as  legacy announce: "^7Allies have ..."  (plain lines on older builds).
     local s = consoleText:gsub("%^.", ""):gsub("%s+$", "")
+    local quoted = s:match('^legacy announce: "(.*)"$')
+    if quoted then s = quoted end
     if #s > 0 and #s < 160 and not s:find("\n")
        and (s:match("^Axis ") or s:match("^Allies ") or s:match("^Allied ") or s:match("^The Axis ") or s:match("^The Allies ")) then
-        emit("announce", { text = s })
+        if s ~= last_announce or (level_time - last_announce_lt) > 2000 then
+            last_announce, last_announce_lt = s, level_time
+            emit("announce", { text = s })
+        end
     end
 end

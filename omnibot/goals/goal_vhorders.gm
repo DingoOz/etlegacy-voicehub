@@ -1,0 +1,249 @@
+// voicehub orders: lets a human player give individual bots orders by voice.
+//
+// The voicehub daemon turns "Walter, stick close" into console commands, e.g.
+//   /bot vh follow <botSlot> <playerSlot> [radiusUnits]   follow that player, keep within radius
+//   /bot vh stay <botSlot> [playerSlot]                   hold the player's (or own) current position
+//   /bot vh release <botSlot|all>                          back to normal play
+//   /bot vh status                                         list active orders
+//   /bot vh debug 0|1
+// The order lives in the global VH_ORDERS table keyed by the bot's game id (client slot);
+// this HighLevel goal runs while an order exists and outranks map goals (priority 0.8).
+// Combat, aiming and weapon handling are untouched: those are LowLevel states.
+
+global VH_ORDERS = {};
+global VH_DEBUG = false;
+
+// File-scope globals do not always survive into the command closure, so every user re-checks.
+global VH_Init = function()
+{
+	if (!VH_ORDERS) { global VH_ORDERS = {}; }
+	if (VH_DEBUG == null) { global VH_DEBUG = false; }
+};
+
+this.Name = "VHOrders";
+this.Parent = "HighLevel";
+this.AlwaysRecieveEvents = false;
+this.Debug = false;
+
+this.Initialize = function()
+{
+	this.TargetPosition = Vec3(0,0,0);
+	this.OnTarget = false;
+	this.GotoThread = null;
+};
+
+this.GetPriority = function()
+{
+	for(;;)
+	{
+		VH_Init();
+		o = VH_ORDERS[ToInt(this.Bot.GetGameId())];
+		if (o && o.cmd != "release")
+		{
+			if (VH_DEBUG && this.Priority == 0) { print("vh: bot ", this.Bot.GetGameId(), " has order ", o.cmd, ", raising priority"); }
+			this.Priority = 0.9;
+		}
+		else
+			{ this.Priority = 0; }
+		sleep(0.5);
+	}
+};
+
+this.Enter = function()
+{
+	this.OnTarget = false;
+	this.TargetPosition = Vec3(0,0,0);
+	if (VH_DEBUG) { print("vh: bot ", this.Bot.GetGameId(), " enters orders goal"); }
+};
+
+this.Exit = function()
+{
+	if (this.GotoThread) { this.KillThread(this.GotoThread); this.GotoThread = null; }
+	this.TargetPosition = Vec3(0,0,0);
+	this.ReleaseAimRequest();
+	this.Bot.ReleaseButton(BTN.SPRINT);
+};
+
+this.Update = function()
+{
+	o = VH_ORDERS[ToInt(this.Bot.GetGameId())];
+	if (!o || o.cmd == "release")
+		{ this.Finished(); return; }
+	if (o.cmd == "follow")
+		{ this.Follow(o); }
+	else if (o.cmd == "stay")
+		{ this.Stay(o); }
+	else
+		{ this.Finished(); }
+};
+
+this.DynamicGoto = function()
+{
+	this.OnTarget = false;
+	if (this.Goto(this.TargetPosition, this.StopRadius) == EVENT.PATH_SUCCESS)
+	{
+		this.OnTarget = true;
+	}
+	else
+	{
+		if (VH_DEBUG) { print("vh: bot ", this.Bot.GetGameId(), " no path to target"); }
+		sleep(2);
+	}
+};
+
+this.Follow = function(o)
+{
+	ent = GetGameEntityFromId(o.target);
+	if (!ent || !EntityIsValid(ent))
+	{
+		if (VH_DEBUG) { print("vh: bot ", this.Bot.GetGameId(), " target gone, releasing"); }
+		VH_ORDERS[ToInt(this.Bot.GetGameId())] = null;
+		this.Finished();
+		return;
+	}
+	entPos = GetEntPosition(ent);
+	if (entPos.IsZero() || GetEntFlags(ent, ENTFLAG.DEAD))
+	{
+		sleep(1);   // target dead or not spawned: wait near where we are
+		return;
+	}
+	radius = o.radius;
+	if (!radius || radius < 96) { radius = 96; }
+	this.StopRadius = radius * 0.5;
+	if (this.StopRadius < 64) { this.StopRadius = 64; }
+
+	d = this.Bot.DistanceTo(entPos);
+	moved = DistanceBetween(entPos, this.TargetPosition);
+
+	// re-path when the target has moved on and we are outside the allowed radius
+	if (d > radius && (moved > 128 || this.TargetPosition.IsZero() || !this.GotoThread))
+	{
+		if (this.GotoThread) { this.KillThread(this.GotoThread); }
+		this.TargetPosition = entPos;
+		this.GotoThread = this.ForkThread(this.DynamicGoto);
+		if (d > radius * 2) { this.Bot.HoldButton(BTN.SPRINT, 3); }
+	}
+	else if (d <= radius && this.OnTarget)
+	{
+		// close enough: look where they look, stay put
+		this.AddAimRequest(Priority.Low, "facing", GetEntFacing(ent));
+	}
+	yield();
+};
+
+this.Stay = function(o)
+{
+	if (!o.pos || o.pos.IsZero())
+	{
+		o.pos = this.Bot.GetPosition();
+	}
+	if (this.Goto(o.pos, 64) == EVENT.PATH_SUCCESS)
+	{
+		if (o.facing) { this.AddAimRequest(Priority.Low, "facing", o.facing); }
+		block(0);   // hold until the order changes (Finished/Exit from GetPriority)
+	}
+	else
+	{
+		sleep(2);
+	}
+};
+
+// ------------------------------------------------------------------ console commands
+// /bot vh <follow|stay|release|status|debug> ...
+
+global VH_BotBySlot = function(slot)
+{
+	foreach (bot in BotTable)
+	{
+		if (ToInt(bot.GetGameId()) == slot) { return bot; }
+	}
+	return null;
+};
+
+Commands["vh"] =
+{
+	Func = function(_params)
+	{
+		VH_Init();
+		if (!tableCount(_params)) { print("usage: bot vh follow|stay|release|status|debug"); return; }
+		sub = _params[0];
+		if (sub == "status")
+		{
+			n = 0;
+			foreach (id and o in VH_ORDERS)
+			{
+				if (o) { print("vh: bot ", id, " ", o.cmd, " target ", o.target, " radius ", o.radius); n = n + 1; }
+			}
+			print("vh: ", n, " active order(s)");
+			return;
+		}
+		if (sub == "debug")
+		{
+			global VH_DEBUG = ToBool(_params[1]);
+			print("vh: debug ", VH_DEBUG);
+			return;
+		}
+		if (sub == "wake")
+		{
+			// testing aid: 1 = bots play even with no human on the server, 0 = normal (ServerManager SleepBots)
+			on = ToBool(_params[1]);
+			Server.SleepBots = !on;
+			foreach (id and bot in BotTable) { bot.Enable(true); }
+			CheckSleep();
+			print("vh: bots awake without humans: ", on);
+			return;
+		}
+		if (sub == "release")
+		{
+			if (_params[1] == "all")
+			{
+				global VH_ORDERS = {};
+				print("vh: all orders released");
+			}
+			else
+			{
+				slot = ToInt(_params[1]);
+				VH_ORDERS[slot] = null;
+				print("vh: bot ", slot, " released");
+			}
+			return;
+		}
+		slot = ToInt(_params[1]);
+		bot = VH_BotBySlot(slot);
+		if (!bot) { print("vh: no bot in slot ", slot); return; }
+		if (sub == "follow")
+		{
+			target = ToInt(_params[2]);
+			radius = 1000;
+			if (_params[3]) { radius = ToInt(_params[3]); }
+			VH_ORDERS[slot] = { cmd = "follow", target = target, radius = radius };
+			print("vh: bot ", slot, " follows ", target, " within ", radius);
+		}
+		else if (sub == "stay")
+		{
+			pos = null; facing = null;
+			if (_params[2])
+			{
+				ent = GetGameEntityFromId(ToInt(_params[2]));
+				if (ent && EntityIsValid(ent)) { pos = GetEntPosition(ent); facing = GetEntFacing(ent); }
+			}
+			VH_ORDERS[slot] = { cmd = "stay", target = -1, radius = 0, pos = pos, facing = facing };
+			print("vh: bot ", slot, " holds position");
+		}
+		else
+		{
+			print("vh: unknown subcommand ", sub);
+		}
+	},
+
+	Help =
+	{
+		"voicehub orders for individual bots",
+		"Usage: /bot vh follow <botSlot> <playerSlot> [radiusUnits]",
+		"       /bot vh stay <botSlot> [playerSlot]",
+		"       /bot vh release <botSlot|all>",
+		"       /bot vh status | debug 0|1 | wake 0|1",
+	},
+};
+
+print("voicehub orders goal loaded");

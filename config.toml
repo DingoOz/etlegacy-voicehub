@@ -83,6 +83,12 @@ bot_thread_max = 3                # longest bot-to-bot exchange (lines) before i
 chitchat_prob = 0.25              # share of spontaneous lines that are small talk about the bots' lives (rest: game talk)
 objective_prob = 0.8              # chance a bot comments when an objective is completed or lost
 
+# Voice orders to bots ("Walter, stick close", "everyone hold here", "Merki, carry on"); needs
+# omnibot/goals/goal_vhorders.gm installed in the server's omni-bot et/scripts/goals/.
+orders = true
+follow_radius_m = 25              # default "stick close" distance when none is spoken
+max_followers = 4                 # bots one player can have on them at once
+
 [voice]
 team_only = true                  # speech, bot replies and bot audio stay within one team
 spectators_hear_all = true        # spectators (and pages that did not pick a name) hear every team

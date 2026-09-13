@@ -18,6 +18,7 @@ from .game_bridge import GameBridge
 from .game_events import GameState, Player, TEAM_AXIS, TEAM_ALLIES, TEAM_SPECTATOR
 from .llm import LLM, trashy
 from .maps import MapLibrary
+from .orders import Orders, parse as parse_order
 from .personas import Personas
 from .stt import STT
 from .tts import TTS
@@ -121,6 +122,7 @@ class Brain:
                  stt: STT, llm: LLM, tts: TTS, personas: Personas, hub: Any, maps: MapLibrary | None = None):
         self.p = policy          # [policy] from config.toml; hot-reloaded in place
         self.maps = maps
+        self.orders = Orders()
         self.v = voice           # [voice]  from config.toml; hot-reloaded in place
         self.state = state
         self.bridge = bridge
@@ -256,6 +258,8 @@ class Brain:
                 await self.hub.broadcast({"type": "voice", "speaker": speaker_name, "team": speaker.team_name,
                                           "text": text, "audio_url": f"/audio/{ident}.wav"},
                                          team=team, exclude_slot=speaker.slot)
+        if speaker and await self.try_order(speaker, text):
+            return {"text": text, "stt_s": round(t_stt, 2), "order": True}
         bot = None
         wants_reply = True
         if mode == "open":
@@ -299,6 +303,12 @@ class Brain:
         st = self.state
         if kind in ("roster", "begin", "disconnect", "userinfo", "mapstart"):
             await self.hub.broadcast({"type": "state", "state": st.to_dict()})
+        if kind == "mapstart":
+            self.orders.clear()          # Omni-bot restarts with the map
+        elif kind == "disconnect":
+            for b in self.orders.followers_of(int(ev.get("slot", -1))):
+                self.bridge.console(f"bot vh release {b}")
+                self.orders.active.pop(b, None)
         if kind == "voice_cmd":
             await self.handle_voice_cmd(ev)
         elif kind == "chat":
@@ -307,6 +317,8 @@ class Brain:
             text = ev.get("text") or ""
             if not pl or pl.bot or not text.strip():
                 return  # never react to bot chat: avoids bot-bot loops
+            if await self.try_order(pl, text):
+                return
             named = self.find_bot_in_text(text, pl)
             mentions_bots = named or re.search(r"\bbots?\b", text, re.I)
             if mentions_bots:
@@ -375,6 +387,44 @@ class Brain:
                 trig = (f'Bad news for your team: "{text}". Rally your team without whining: say what to defend or '
                         "retake next and where.")
             self.jobs.put_nowait(Job(bot, trig, False, time.time()))
+
+    async def try_order(self, speaker: Player, text: str) -> bool:
+        """If `text` is an order to a bot (or to all bots on the team), execute it via Omni-bot
+        and queue a spoken acknowledgement. Returns True when an order was handled."""
+        if not self.p.get("orders", True):
+            return False
+        order = parse_order(text, float(self.p.get("follow_radius_m", 25)))
+        if not order:
+            return False
+        named = self.find_bot_in_text(text, speaker)
+        if order.everyone and not named:
+            targets = self.voiced_bots(speaker.team if speaker.team in (TEAM_AXIS, TEAM_ALLIES) else None)
+        elif named:
+            targets = [named]
+        else:
+            # a lone follower already assigned to this player is the natural target
+            mine = [self.state.players[b] for b in self.orders.followers_of(speaker.slot) if b in self.state.players]
+            targets = mine if order.kind != "follow" and mine else []
+        if not targets:
+            return False
+        max_f = int(self.p.get("max_followers", 4))
+        if order.kind == "follow":
+            room = max_f - len([b for b in self.orders.followers_of(speaker.slot) if b not in {t.slot for t in targets}])
+            targets = targets[:max(room, 0)]
+            if not targets:
+                self.notify(speaker.slot, f"you already have {max_f} bots on you")
+                return True
+        for bot in targets:
+            self.bridge.console(self.orders.command(order, bot.slot, speaker.slot))
+        names = [b.clean for b in targets]
+        log.info("order from %s: %s -> %s (radius %s m)", speaker.clean, order.kind, names, order.radius_m)
+        self.state.add_line(f"[order] {speaker.clean} told {', '.join(names)}: {order.kind}")
+        self.notify(speaker.slot, f"{', '.join(names)}: {order.kind}" + (f" within {order.radius_m:.0f} m" if order.radius_m else ""))
+        await self.hub.broadcast({"type": "transcript", "speaker": "order", "text": f"{', '.join(names)}: {order.kind}"},
+                                 team=speaker.team)
+        # one bot acknowledges out loud (the first named one), as a prompted job so it is not dropped
+        self.jobs.put_nowait(Job(targets[0], self.orders.describe(order, speaker.clean, names), True, time.time()))
+        return True
 
     def _has_audience(self, bot: Player) -> bool:
         return bool(self.state.humans_on(bot.team)) if self.team_only else bool(self.state.humans())
