@@ -9,7 +9,7 @@
 -- commands (bound in-game, e.g.  bind v "cmd vh_talk"); everything else falls
 -- through, so it can be listed before WolfAdmin in lua_modules.
 
-local VERSION = "0.3"
+local VERSION = "0.4"
 local POLL_MS = 100
 local MAX_TEXT = 150
 local CONSOLE_ALLOW = { "playsound ", "bot " }
@@ -322,6 +322,7 @@ function et_InitGame(levelTime, randomSeed, restartMap)
     emit("mapstart", {
         map = et.trap_Cvar_Get("mapname"),
         gametype = tonumber(et.trap_Cvar_Get("g_gametype")),
+        timelimit = tonumber(et.trap_Cvar_Get("timelimit")),
         restart = (restartMap == 1),
     })
     emit_roster()
@@ -393,5 +394,13 @@ function et_Print(consoleText)
     local medic, victim = string.match(consoleText, "^Medic_Revive:%s+(%d+)%s+(%d+)\n$")
     if medic then
         emit("revive", { medic = tonumber(medic), victim = tonumber(victim) })
+        return
+    end
+    -- Objective announcements (map script wm_announce) reach the console as plain lines such as
+    -- "Allies have breached the Old City wall". Chat is "say: ..." so it never matches.
+    local s = consoleText:gsub("%^.", ""):gsub("%s+$", "")
+    if #s > 0 and #s < 160 and not s:find("\n")
+       and (s:match("^Axis ") or s:match("^Allies ") or s:match("^Allied ") or s:match("^The Axis ") or s:match("^The Allies ")) then
+        emit("announce", { text = s })
     end
 end

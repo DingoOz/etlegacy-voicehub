@@ -21,6 +21,7 @@ HEADER = """# Bot personas. Keys are the clean Omni-bot names (without the [BOT]
 #   style   = Qwen3-TTS voice description, prepended to the emotion instruction
 #   speed   = playback rate multiplier on top of [tts] speed (1.0 = unchanged)
 #   volume  = gain applied to this bot's audio (1.0 = unchanged)
+#   life    = a few facts about the bot's life outside the game, for small talk between bots
 # This file is rewritten by the settings page (https://<hub>/settings); comments below are not kept.
 """
 
@@ -31,6 +32,7 @@ EDITABLE: dict[str, tuple[type, float | None, float | None]] = {
     "speaker": (str, None, None),
     "style": (str, None, None),
     "persona": (str, None, None),
+    "life": (str, None, None),
     "speed": (float, 0.5, 2.0),
     "volume": (float, 0.2, 3.0),
 }
@@ -44,6 +46,7 @@ class Persona:
     speaker: str        # qwen3-tts preset speaker
     style: str          # qwen3-tts voice description (age, attitude), prepended to the emotion instruct
     persona: str
+    life: str = ""        # life outside the game, for small talk
     speed: float = 1.0
     volume: float = 1.0
 
@@ -110,6 +113,7 @@ class Personas:
             str(v.get("speaker", b.speaker if b else self._fallback_speaker)),
             str(v.get("style", b.style if b else "")),
             str(v.get("persona", b.persona if b else "a seasoned soldier with a dry sense of humour")),
+            str(v.get("life", b.life if b else "")),
             float(v.get("speed", b.speed if b else 1.0)),
             float(v.get("volume", b.volume if b else 1.0)),
         )
@@ -126,7 +130,7 @@ class Personas:
         if p:
             return p
         d = self.default
-        return Persona(clean_name, d.voiced, d.voice, d.speaker, d.style, d.persona, d.speed, d.volume)
+        return Persona(clean_name, d.voiced, d.voice, d.speaker, d.style, d.persona, d.life, d.speed, d.volume)
 
     def has_override(self, clean_name: str) -> bool:
         return clean_name.lower() in self.bots

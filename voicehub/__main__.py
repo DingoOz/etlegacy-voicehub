@@ -12,6 +12,7 @@ from .brain import Brain
 from .game_bridge import GameBridge, Rcon
 from .game_events import EventTailer, GameState
 from .llm import LLM
+from .maps import MapLibrary
 from .personas import Personas
 from .settings import Settings
 from .stt import STT
@@ -46,7 +47,9 @@ async def main() -> None:
         personas = Personas(cfg.personas, tts.default_voice, cfg.tts.get("default_speaker", "Ryan"),
                             path=cfg.root / "personas.toml")
     hub = Hub(state, cfg.voice)
-    brain = Brain(cfg.policy, cfg.voice, state, bridge, stt, llm, tts, personas, hub)
+    maps = MapLibrary([cfg.path(d) for d in cfg.game.get("pk3_dirs", ["../etmain", "../legacy", cfg.game["homepath"]])],
+                      cfg.root / "maps.toml")
+    brain = Brain(cfg.policy, cfg.voice, state, bridge, stt, llm, tts, personas, hub, maps)
     brain.page_url = cfg.web.get("public_url") or f"https://{cfg.web.get('cert_sans', ['localhost'])[0]}:{cfg.web.get('https_port', 8443)}"
     settings = Settings(cfg.root, {"tts": cfg.tts, "policy": cfg.policy, "voice": cfg.voice}, personas)
     ctx = {"state": state, "brain": brain, "hub": hub, "llm": llm, "rcon": rcon, "stt": stt, "tts": tts,
@@ -73,8 +76,10 @@ async def main() -> None:
         restart. Writes made by the settings page are already live and are skipped."""
         path = cfg.root / "config.toml"
         ppath = cfg.root / "personas.toml"
+        mpath = cfg.root / "maps.toml"
         last = path.stat().st_mtime
         plast = ppath.stat().st_mtime if ppath.exists() else 0.0
+        mlast = mpath.stat().st_mtime if mpath.exists() else 0.0
         while True:
             await asyncio.sleep(3)
             try:
@@ -88,6 +93,11 @@ async def main() -> None:
                         cfg.tts.clear(); cfg.tts.update(new.tts)
                         log.info("config.toml reloaded: policy=%s voice=%s", cfg.policy, cfg.voice)
                         await hub.broadcast({"type": "settings", "voice": cfg.voice})
+                mm = mpath.stat().st_mtime if mpath.exists() else 0.0
+                if mm != mlast:
+                    mlast = mm
+                    maps.forget()
+                    log.info("maps.toml changed: map knowledge cache cleared")
                 pm = ppath.stat().st_mtime if ppath.exists() else 0.0
                 if pm != plast:
                     plast = pm

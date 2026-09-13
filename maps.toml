@@ -1,0 +1,24 @@
+# Extra map knowledge for the bots, on top of what the game's own pk3 files say
+# (mission text and objective lists are read from maps/<map>.objdata automatically).
+# Add a table per map (key = map name as in /map). Optional keys:
+#   tips             = one or two sentences of practical advice, both teams
+#   longname, briefing, axis_objectives = [...], allied_objectives = [...]   (overrides)
+# Edits are picked up within a few seconds.
+
+[maps.oasis]
+tips = "Allies: an engineer repairing the pumps opens the caves, which is often easier than the Old City wall; covert ops can sneak the garrison in a uniform. Axis: hold the garrison stairs and keep mines at the cave exits."
+
+[maps.goldrush]
+tips = "Allies: everything hinges on an engineer repairing and escorting the tank; medics stay glued to it. Axis: keep the tank damaged, mine the tank route and camp the bank courtyard from above."
+
+[maps.radar]
+tips = "Allies: two radar parts must be carried back to the truck; covert ops can open the side door in a uniform. Axis: guard the parts themselves, not the entrances, and watch the flag."
+
+[maps.railgun]
+tips = "Allies: build the tug, ride the ammo crate, then defend the railgun loading. Axis: engineers stop the tug, everyone else holds the depot."
+
+[maps.fueldump]
+tips = "Allies: engineers build the bridge for the tank, then the tank breaks the depot walls; mines are everywhere so covert ops should spot them. Axis: mine the bridge approach and keep the depot gate intact."
+
+[maps.battery]
+tips = "Allies: an engineer builds the assault ramp, or covert ops open the back door; then dynamite the gun controls. Axis: the ramp and the back door are the whole defence, keep them intact and mined."

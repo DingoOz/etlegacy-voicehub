@@ -16,7 +16,8 @@ from typing import Any, Awaitable, Callable
 
 from .game_bridge import GameBridge
 from .game_events import GameState, Player, TEAM_AXIS, TEAM_ALLIES, TEAM_SPECTATOR
-from .llm import LLM
+from .llm import LLM, trashy
+from .maps import MapLibrary
 from .personas import Personas
 from .stt import STT
 from .tts import TTS
@@ -31,17 +32,28 @@ BOT_COMMAND_RE = re.compile(r"\b(bot|bots)\s+(come|go|stop|wait|follow|camp|move
 HALLUCINATIONS = {"thank you", "thanks", "thank you.", "you", "bye", "thanks for watching", "the end",
                   "so", "okay", "ok", "um", "uh", "hmm", "yeah", "oh"}
 
-IDLE_PROMPTS = [
-    "Nothing much is happening right now. Say one spontaneous line to your team: banter, a joke, or a tease.",
-    "Quiet moment. Suggest something tactical to your team about the map, in character.",
-    "Make a short remark about the map or the match so far.",
-    "Tease one of your teammates by name, in good fun.",
-    "Say something that shows your personality; nobody asked, you just felt like it.",
-    "Comment on the enemy team, in character.",
-    "Tell your team what you are doing right now and what you plan to do next, based on your latest actions.",
-    "Complain or brag to a teammate bot about how your last few fights went.",
-    "Ask a teammate bot by name what they are up to.",
+# Spontaneous lines. Most are about playing the game well; a share (policy.chitchat_prob) is
+# small talk about the bots' lives, using each persona's `life` notes.
+TACTICAL_PROMPTS = [
+    "Quiet moment. Look at your team's objectives and suggest the next thing the team should do, in character.",
+    "Tell your team what you are doing right now and what you plan to do next, based on your class and your latest actions.",
+    "Ask a teammate bot by name to do something specific that would help the current objective (cover, build, revive, ammo, scout).",
+    "Remind the team of the current objective and where on the map it is.",
+    "Give one practical tip for your class on this map.",
+    "Report what you can see from where you are and whether it is safe, in character.",
+    "Suggest a route or a place to hold based on the map, in one line.",
+    "Ask a teammate what they need: ammo, a medic, an engineer, cover.",
+    "Make a short remark about how the match is going and what would turn it around, constructive.",
+    "Coordinate with a teammate bot by name: propose that the two of you push or hold together.",
 ]
+CHITCHAT_PROMPTS = [
+    "Nothing is happening. Ask a teammate bot by name something about their life outside the game.",
+    "Mention a small thing from your own life outside the game, the way friends do between rounds.",
+    "Answer nobody in particular: share how your day has been going so far, briefly.",
+    "Ask a teammate bot by name how something from their life is going (their pet, their job, their weekend).",
+    "Make a bit of friendly small talk about food, weather, pets or weekend plans.",
+]
+IDLE_PROMPTS = TACTICAL_PROMPTS + CHITCHAT_PROMPTS
 
 
 def split_sentences(text: str) -> list[str]:
@@ -85,6 +97,7 @@ class Job:
     prompted: bool
     created: float
     depth: int = 0          # position in a bot-to-bot thread (0 = not a thread reply)
+    topic: str = "game"     # "game" or "life": what a follow-up from a teammate should be about
 
 
 class AudioStore:
@@ -105,8 +118,9 @@ class AudioStore:
 
 class Brain:
     def __init__(self, policy: dict[str, Any], voice: dict[str, Any], state: GameState, bridge: GameBridge,
-                 stt: STT, llm: LLM, tts: TTS, personas: Personas, hub: Any):
+                 stt: STT, llm: LLM, tts: TTS, personas: Personas, hub: Any, maps: MapLibrary | None = None):
         self.p = policy          # [policy] from config.toml; hot-reloaded in place
+        self.maps = maps
         self.v = voice           # [voice]  from config.toml; hot-reloaded in place
         self.state = state
         self.bridge = bridge
@@ -127,6 +141,23 @@ class Brain:
     @property
     def team_only(self) -> bool:
         return bool(self.v.get("team_only", True))
+
+    @property
+    def rating(self) -> str:
+        return str(self.p.get("rating", "pg13"))
+
+    @property
+    def trashy(self) -> bool:
+        return trashy(self.rating)
+
+    def map_brief(self, team: str) -> str:
+        if not self.maps or not self.state.map:
+            return ""
+        try:
+            return self.maps.info(self.state.map).brief(team)
+        except Exception as e:  # noqa: BLE001
+            log.warning("map brief failed: %s", e)
+            return ""
 
     def voiced_bots(self, team: int | None = None) -> list[Player]:
         bots = [b for b in self.state.bots() if self.personas.for_name(b.clean).voiced]
@@ -293,9 +324,13 @@ class Brain:
                 return
             to_team = " Say it to your team." if self.team_only else ""
             if kp.bot and not vp.bot and self.personas.for_name(kp.clean).voiced and self._has_audience(kp):
-                self.jobs.put_nowait(Job(kp, f"You just killed {vp.clean}. Gloat briefly.{to_team}", False, time.time()))
+                what = ("Gloat briefly." if self.trashy else
+                        "Report it to your team briefly and usefully (where it happened, what the enemy was doing); no gloating.")
+                self.jobs.put_nowait(Job(kp, f"You just killed {vp.clean}. {what}{to_team}", False, time.time()))
             elif vp.bot and not kp.bot and self.personas.for_name(vp.clean).voiced and self._has_audience(vp):
-                self.jobs.put_nowait(Job(vp, f"{kp.clean} just killed you. React briefly.{to_team}", False, time.time()))
+                what = ("React briefly." if self.trashy else
+                        "React briefly like a good sport: give credit, or tell your team where the danger is.")
+                self.jobs.put_nowait(Job(vp, f"{kp.clean} just killed you. {what}{to_team}", False, time.time()))
         elif kind == "revive":
             m, v = st.players.get(int(ev.get("medic", -1))), st.players.get(int(ev.get("victim", -1)))
             if m and v and v.bot and not m.bot and random.random() < float(self.p.get("revive_thanks_prob", 0.6)):
@@ -310,6 +345,8 @@ class Brain:
                 bot = self.pick_bot(None, team=team if self.team_only else None)
                 if bot:
                     self.jobs.put_nowait(Job(bot, f"{ev['clean']} just joined your team. Greet them.", False, time.time()))
+        elif kind == "announce":
+            await self.handle_announce(str(ev.get("text") or ""))
         elif kind == "mapstart" and not ev.get("restart"):
             self.greeted.clear()
             if random.random() < float(self.p.get("mapstart_prob", 0.5)):
@@ -317,6 +354,27 @@ class Brain:
                 bot = self.bot_with_audience()
                 if bot:
                     self.jobs.put_nowait(Job(bot, f"The map {st.map} just started. Say something to get everyone going.", False, time.time()))
+
+    async def handle_announce(self, text: str) -> None:
+        """An objective was completed or lost: one bot per side may comment, constructively."""
+        if not text or random.random() > float(self.p.get("objective_prob", 0.8)):
+            return
+        low = text.lower()
+        actor = TEAM_AXIS if low.startswith(("axis", "the axis")) else TEAM_ALLIES if low.startswith(("allies", "allied", "the allies")) else None
+        for team in (TEAM_AXIS, TEAM_ALLIES):
+            bots = [b for b in self.voiced_bots(team) if self._has_audience(b)]
+            if not bots:
+                continue
+            bot = random.choice(bots)
+            if actor is None:
+                trig = f'Game announcement: "{text}". Tell your team what it means for you and what to do next.'
+            elif team == actor:
+                trig = (f'Your team just did it: "{text}". Cheer briefly, then say what the team should go for next '
+                        "according to your objectives.")
+            else:
+                trig = (f'Bad news for your team: "{text}". Rally your team without whining: say what to defend or '
+                        "retake next and where.")
+            self.jobs.put_nowait(Job(bot, trig, False, time.time()))
 
     def _has_audience(self, bot: Player) -> bool:
         return bool(self.state.humans_on(bot.team)) if self.team_only else bool(self.state.humans())
@@ -342,7 +400,11 @@ class Brain:
                 continue
             if time.time() - self.last_spoke_global < float(self.p.get("idle_chatter_min_quiet_s", 20)):
                 continue  # somebody spoke recently; not idle
-            self.jobs.put_nowait(Job(bot, random.choice(IDLE_PROMPTS), False, time.time()))
+            life = random.random() < float(self.p.get("chitchat_prob", 0.25))
+            if life and not self.personas.for_name(bot.clean).life:
+                life = False   # nothing to chat about for this one
+            prompt = random.choice(CHITCHAT_PROMPTS if life else TACTICAL_PROMPTS)
+            self.jobs.put_nowait(Job(bot, prompt, False, time.time(), topic="life" if life else "game"))
 
     # ------------------------------------------------------------------ output
     async def speak(self, bot: Player, text: str, team: bool | None = None, emotion: str = "neutral") -> dict[str, Any]:
@@ -419,7 +481,9 @@ class Brain:
         persona = self.personas.for_name(bot.clean)
         system = self.llm.system_prompt(bot.clean, persona.persona, bot.team_name, bot.class_name,
                                         self.state.map, self.roster_text(), self.state.context_text(),
-                                        rating=str(self.p.get("rating", "pg13")), activity=bot.activity_text())
+                                        rating=self.rating, activity=bot.activity_text(),
+                                        map_brief=self.map_brief(bot.team_name), progress=self.state.progress_text(),
+                                        minutes_left=self.state.minutes_left(), life=persona.life)
         t0 = time.time()
         emotion, text = await self.llm.reply(system, job.trigger)
         t_llm = time.time() - t0
@@ -445,6 +509,11 @@ class Brain:
             return
         named = self.find_bot_in_text(text, bot)
         other = named if named and named.slot != bot.slot else random.choice(mates)
-        trigger = (f'Your teammate {bot.clean} just said over the team radio: "{text}". '
-                   "Answer them in one line, mention what you yourself are doing or just did in the game.")
-        self.jobs.put_nowait(Job(other, trigger, False, time.time(), depth=job.depth + 1))
+        if job.topic == "life":
+            trigger = (f'Your teammate {bot.clean} just said over the team radio: "{text}". '
+                       "Answer them in one friendly line about that, drawing on your own life outside the game.")
+        else:
+            trigger = (f'Your teammate {bot.clean} just said over the team radio: "{text}". '
+                       "Answer them in one line that helps the team: agree on a plan, say what you yourself are doing "
+                       "or just did, or what you need.")
+        self.jobs.put_nowait(Job(other, trigger, False, time.time(), depth=job.depth + 1, topic=job.topic))

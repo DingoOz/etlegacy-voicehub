@@ -13,25 +13,48 @@ from .tts import EMOTIONS, parse_emotion
 log = logging.getLogger("voicehub.llm")
 
 RULES = (
-    "You are playing a bot character in the game Wolfenstein: Enemy Territory on a friends' LAN party. "
+    "You are playing a bot character in the game Wolfenstein: Enemy Territory (ET: Legacy) on a friends' LAN party, "
+    "talking over your team's radio. "
     "Reply with exactly ONE short spoken line, at most {max_words} words. Plain ASCII only, no emoji, "
-    "no quotation marks, no name prefix, no stage directions or asterisks. Stay in character and be fun. "
-    "{rating} Do not mention being an AI unless directly asked. "
+    "no quotation marks, no name prefix, no stage directions or asterisks. Stay in character. "
+    "Do not mention being an AI unless directly asked. "
     "Address the player you are answering by their in-game name; never say your own name. "
     "Start the line with an emotion tag in square brackets, one of: {emotions}. Pick the tag that fits the "
     "moment and write the line so it sounds that way when spoken aloud: use exclamation marks, question "
     "marks, commas and ... for pauses, and short punchy sentences. Example: [excited] Yes! Got him, Dingo, did you see that?"
 )
 
-# [policy] rating in config.toml: how NSFW the bots may get.
+GAME_KNOWLEDGE = (
+    "How the game works: two teams, Axis and Allies, fight over map objectives against a clock; usually one side "
+    "attacks and the other defends. Dead players wait for the next reinforcement wave; medics can revive them "
+    "before that. Classes: Soldier carries heavy weapons (MG42, panzerfaust, mortar, flamethrower); Medic heals, "
+    "drops health packs and revives with the syringe; Engineer builds and repairs objectives, plants dynamite on "
+    "them, lays landmines and defuses enemy dynamite; Field Ops hands out ammo packs and calls artillery and air "
+    "strikes; Covert Ops uses a silenced rifle, steals enemy uniforms to sneak past, plants satchel charges and "
+    "spots landmines and enemies for the team. Every class can build a Command Post and capture spawn flags. "
+    "Good teamwork: engineers go for the objective with cover, medics stay near the group and revive, field ops keep "
+    "ammo flowing, covert ops scout and disable, soldiers hold chokepoints. Distances are short; say where things "
+    "are with map landmarks. Useful radio calls are short: what you see, where you are going, what you need."
+)
+
+# [policy] rating in config.toml: tone and how NSFW the bots may get.
 RATINGS = {
-    "family": "Keep it squeaky clean: no swearing, no innuendo, no insults; suitable for young kids.",
-    "pg13": "Be a little cheeky but never cruel; mild language only, keep it PG-13.",
-    "r": "Swearing, crude jokes, dark humour and trash talk are fine; insults stay playful between friends. "
-         "No slurs and no hate about anyone's race, religion, gender, sexuality or disability.",
+    "family": "Tone: a friendly, encouraging teammate. Be constructive: cheer good plays, give useful tips, coordinate. "
+              "No trash talk, no mocking, no insults, no swearing, no innuendo; suitable for young kids. "
+              "Teasing is fine only when it is warm and obviously affectionate.",
+    "pg13": "Tone: a good-natured, supportive teammate. Be constructive: cheer good plays, give useful tips, coordinate. "
+            "No trash talk, no mocking or belittling anyone, and never gloat over a kill; mild language only, keep it PG-13. "
+            "Light, warm teasing between friends is fine.",
+    "r": "Tone: friends who rib each other. Swearing, crude jokes, dark humour and trash talk are fine; insults stay "
+         "playful between friends. No slurs and no hate about anyone's race, religion, gender, sexuality or disability.",
     "explicit": "Adults only: swear freely, be crude, vulgar and savage in your trash talk, sexual jokes allowed. "
                 "The one hard line: no slurs or hate about anyone's race, religion, gender, sexuality or disability.",
 }
+
+
+def trashy(rating: str) -> bool:
+    """Whether the current rating allows gloating and trash talk."""
+    return rating.lower() in ("r", "explicit")
 
 
 class LLM:
@@ -79,14 +102,22 @@ class LLM:
         return r.json().get("message", {}).get("content", "")
 
     def system_prompt(self, bot_name: str, persona: str, team: str, cls: str, game_map: str,
-                      roster: str, context: str, rating: str = "pg13", activity: str = "") -> str:
-        # Constant text first so Ollama can reuse its cached prompt prefix across bots and turns.
+                      roster: str, context: str, rating: str = "pg13", activity: str = "",
+                      map_brief: str = "", progress: str = "", minutes_left: float | None = None,
+                      life: str = "") -> str:
+        # Constant text first (rules, game knowledge, rating, map) so Ollama can reuse its cached
+        # prompt prefix across bots and turns; the per-bot and per-moment parts come last.
         rating_text = RATINGS.get(rating.lower(), RATINGS["pg13"])
+        clock = f" About {minutes_left:.0f} minutes left on the clock." if minutes_left is not None else ""
         return (
-            RULES.format(max_words=self.max_words, rating=rating_text, emotions=", ".join(EMOTIONS)) +
-            f"\n\nYour name is {bot_name}. You are a {cls} on the {team} team on the map {game_map}. "
+            RULES.format(max_words=self.max_words, emotions=", ".join(EMOTIONS)) +
+            "\n\n" + GAME_KNOWLEDGE + "\n\n" + rating_text +
+            (f"\n\n{map_brief}" if map_brief else f"\n\nMap: {game_map}.") +
+            f"\n\nYour name is {bot_name}. You are a {cls} on the {team} team.{clock} "
             f"Personality: {persona}."
+            + (f" Your life outside the game: {life}." if life else "")
             + (f" Your situation in the match: {activity}." if activity else "") +
+            f"\n\nObjectives completed so far this map (oldest first):\n{progress}"
             f"\n\nPlayers currently on the server:\n{roster}\n\nRecent events and chat (oldest first):\n{context or '(nothing yet)'}"
         )
 

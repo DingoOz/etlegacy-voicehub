@@ -29,6 +29,7 @@
     card.querySelector(".f-volume").value = bot.volume; card.querySelector(".o-volume").textContent = bot.volume.toFixed(1) + "×";
     card.querySelector(".f-style").value = bot.style || "";
     card.querySelector(".f-persona").value = bot.persona || "";
+    card.querySelector(".f-life").value = bot.life || "";
   }
 
   function readCard(card) {
@@ -40,6 +41,7 @@
       volume: parseFloat(card.querySelector(".f-volume").value),
       style: card.querySelector(".f-style").value,
       persona: card.querySelector(".f-persona").value,
+      life: card.querySelector(".f-life").value,
     };
   }
 

@@ -69,6 +69,18 @@ class GameState:
     lines: deque[str] = field(default_factory=lambda: deque(maxlen=20))
     last_event_ts: float = 0.0
     level_time: int = 0
+    start_lt: int = 0
+    timelimit_min: float = 0.0
+    objective_log: deque[str] = field(default_factory=lambda: deque(maxlen=10))
+
+    def minutes_left(self) -> float | None:
+        """Rough time left on the clock (counts from map load, so warm-up skews it a little)."""
+        if not self.timelimit_min or not self.level_time:
+            return None
+        return max(0.0, self.timelimit_min - (self.level_time - self.start_lt) / 60000.0)
+
+    def progress_text(self) -> str:
+        return "\n".join(f"- {x}" for x in self.objective_log) or "(no objective completed yet)"
 
     def humans(self) -> list[Player]:
         return [p for p in self.players.values() if not p.bot and p.clean]
@@ -137,7 +149,15 @@ class EventTailer:
             st.map = ev.get("map") or st.map
             st.players.clear()
             st.lines.clear()
+            st.objective_log.clear()
+            st.start_lt = st.level_time
+            st.timelimit_min = float(ev.get("timelimit") or 0)
             st.add_line(f"[map {st.map} started]")
+        elif kind == "announce":
+            text = str(ev.get("text") or "").strip()
+            if text:
+                st.objective_log.append(text)
+                st.add_line(f"[objective] {text}")
         elif kind == "roster":
             if ev.get("map"):
                 st.map = ev["map"]

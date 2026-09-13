@@ -21,6 +21,23 @@ players' browsers  <-- https + WebSocket -->  voicehub (this daemon)  <-- files 
   NSFW `rating` are in `[policy]`.
 * `personas.toml` gives each bot name a personality and a Piper voice.
 
+## What the bots know
+
+Every prompt carries a short primer on how ET works (classes, respawn waves, objectives) and a
+briefing for the current map read from the game's own pk3 files: the team's mission text and
+numbered objectives from `maps/<map>.objdata`, the long name and time limit from
+`scripts/<map>.arena`. `maps.toml` adds per-map tips (six stock maps included; add custom maps
+there). The Lua bridge forwards the game's objective announcements ("Allies have built the
+Assault Ramp!"), so bots know what is done and what is left, and one bot per side reacts to each
+(`policy.objective_prob`). A rough minutes-left figure is included too.
+
+Tone follows `policy.rating`: at `family` and `pg13` the bots are constructive teammates (no
+trash talk, no gloating, kill reports become useful call-outs); trash talk only returns at `r`
+and `explicit`. Spontaneous lines are mostly about playing the map (objectives, class tips,
+coordination with a named teammate); a share of them (`policy.chitchat_prob`, default 25%) is
+small talk drawn from each bot's `life` notes in `personas.toml` (pets, jobs, the vet visit), and
+bot-to-bot follow-ups stay on the same topic.
+
 ## In-game keys
 
 Keep the voice page open in the background with your name picked, then in the game
